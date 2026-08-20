@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Качество AI-ассистента: дашборд</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3F3F3; --surface:#FFFFFF; --surface-dark:#1C1C1E;
+    --primary:#11BB91; --primary-tint:#DDF6E8;
+    --text:#212529; --text-strong:#263238; --muted:#82919A; --border:#DFDFDF;
+    --gold:#FCB520; --neg:#C44040;
+    --c1:#0E9E7B; --c2:#3B82F6; --c3:#D97706; --c4:#B23A78; --c5:#6D5BD0; --gray:#9AA7AE;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Manrope',system-ui,sans-serif;font-size:15px;line-height:1.5}
+  .wrap{max-width:1280px;margin:0 auto;padding:40px 32px 96px}
+  .num{font-variant-numeric:tabular-nums}
+
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:8px}
+  h1{font-size:38px;line-height:1.15}
+  h1 .b{font-weight:800}
+  h1 .l{font-weight:400;color:var(--muted);margin-left:10px}
+  .sub{color:var(--muted);margin-top:6px;font-size:14px}
+  .hright{display:flex;flex-direction:column;align-items:flex-end;gap:14px}
+  .tabs{display:flex;gap:28px;border-bottom:1px solid var(--border)}
+  .tabs button{background:none;border:none;font:inherit;font-weight:600;color:var(--muted);padding:0 2px 10px;border-bottom:2px solid transparent;cursor:pointer}
+  .tabs button.on{color:var(--text);border-bottom-color:var(--primary)}
+
+  /* upload bar */
+  .upload{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .btn{border:none;cursor:pointer;font:inherit;font-weight:700;border-radius:12px;padding:10px 18px;background:var(--primary);color:#fff;font-size:14px}
+  .btn:hover{filter:brightness(.95)}
+  .btn.ghost{background:var(--primary-tint);color:var(--primary);border-radius:9999px;padding:8px 16px;font-size:13px}
+  .src{font-size:13px;color:var(--muted)}
+  .src b{color:var(--text-strong)}
+  .err{background:#FBEEE9;color:var(--neg);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;margin-top:16px;display:none}
+
+  body.drag::after{content:'Отпустите файл: CSV, JSON или XLSX';position:fixed;inset:0;background:rgba(17,187,145,.12);border:3px dashed var(--primary);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:var(--primary);z-index:50}
+
+  .kpis{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr;gap:16px;margin:32px 0}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:22px 24px}
+  .kpi .lab{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px}
+  .kpi .val{font-size:32px;font-weight:800;letter-spacing:-0.5px}
+  .kpi .val small{font-size:16px;font-weight:600;color:var(--muted);margin-left:2px}
+  .kpi .delta{font-size:13px;font-weight:700;margin-top:6px;min-height:20px}
+  .up{color:var(--c1)} .down{color:var(--neg)}
+  .kpi.dark{background:var(--surface-dark);border-color:var(--surface-dark);color:#fff}
+  .kpi.dark .lab{color:rgba(255,255,255,.6)}
+  .badge{display:inline-block;background:#FBEEE9;color:var(--neg);font-size:11px;font-weight:800;border-radius:9999px;padding:3px 10px}
+
+  .grid{display:grid;grid-template-columns:7fr 5fr;gap:16px;margin-bottom:16px}
+  .grid.rev{grid-template-columns:5fr 7fr}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:30px;padding:28px}
+  .card h2{font-size:19px;font-weight:800;color:var(--text-strong)}
+  .card .hint{font-size:13px;color:var(--muted);margin:2px 0 20px}
+  .legend{display:flex;gap:18px;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+  .chart svg{width:100%;height:auto;display:block}
+  .gridline{stroke:#ECECEC;stroke-width:1}
+  .axis-t{font-size:11px;fill:var(--muted);font-family:'Manrope'}
+  .dl{font-size:11px;font-weight:700;font-family:'Manrope'}
+
+  .hbars .row{display:grid;grid-template-columns:190px 1fr 44px;align-items:center;gap:12px;padding:7px 0}
+  .hbars .name{font-size:13.5px;font-weight:600;color:var(--text-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hbars .track{height:18px;border-radius:4px;background:#F0F1F2;overflow:hidden}
+  .hbars .fill{height:100%;display:block;border-radius:0 4px 4px 0}
+  .hbars .cnt{font-size:13px;font-weight:700;text-align:right;color:var(--text-strong)}
+
+  .stack{display:flex;height:26px;border-radius:6px;overflow:hidden;gap:2px}
+  .qlegend{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+  .qlegend .q{border:1px solid var(--border);border-radius:14px;padding:12px 14px}
+  .qlegend .q .n{font-size:20px;font-weight:800}
+  .qlegend .q .t{font-size:12px;font-weight:600;color:var(--muted)}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+
+  .qrow{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid #EFEFEF}
+  .qrow:last-child{border-bottom:none}
+  .qrow .ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .qrow .q{flex:1;min-width:0}
+  .qrow .q .txt{font-size:14px;font-weight:600;color:var(--text-strong)}
+  .qrow .q .cat{font-size:12px;color:var(--muted)}
+  .qrow .n{font-weight:800;font-size:15px}
+  .qrow .share{font-size:12px;color:var(--muted);width:42px;text-align:right}
+
+  .empty{color:var(--muted);font-size:13px;padding:16px 0}
+  .foot{color:var(--muted);font-size:12.5px;margin-top:28px}
+  @media(max-width:980px){.kpis{grid-template-columns:1fr 1fr}.grid,.grid.rev{grid-template-columns:1fr}.qlegend{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1><span class="b">Качество</span><span class="l">AI-ассистента</span></h1>
+      <div class="sub" id="subline">Налоговый ассистент для МСБ</div>
+    </div>
+    <div class="hright">
+      <div class="upload">
+        <span class="src" id="srcInfo">Демо-данные · <b>перетащи файл</b> на страницу или</span>
+        <button class="btn" id="pickBtn">Загрузить файл</button>
+        <button class="btn ghost" id="tplBtn">Шаблон CSV</button>
+        <input type="file" id="fileInput" accept=".csv,.json,.xlsx,.xls" hidden>
+      </div>
+      <div class="tabs" id="tabs">
+        <button data-days="1">Сегодня</button>
+        <button data-days="7" class="on">7 дней</button>
+        <button data-days="30">30 дней</button>
+        <button data-days="92">Квартал</button>
+        <button data-days="0">Всё</button>
+      </div>
+    </div>
+  </header>
+  <div class="err" id="errBox"></div>
+
+  <div class="kpis">
+    <div class="kpi dark">
+      <div class="lab" id="kDialogsLab">Диалогов</div>
+      <div class="val num" id="kDialogs">–</div>
+      <div class="delta up" id="kDialogsDelta"></div>
+    </div>
+    <div class="kpi">
+      <div class="lab">Время ответа · среднее</div>
+      <div class="val num"><span id="kAvg">–</span><small>с</small></div>
+      <div class="delta"></div>
+    </div>
+    <div class="kpi">
+      <div class="lab">Время ответа · медиана</div>
+      <div class="val num"><span id="kMed">–</span><small>с</small></div>
+      <div class="delta"></div>
+    </div>
+    <div class="kpi">
+      <div class="lab">Время ответа · p90</div>
+      <div class="val num"><span id="kP90">–</span><small>с</small></div>
+      <div class="delta"></div>
+    </div>
+    <div class="kpi">
+      <div class="lab">Правильных ответов</div>
+      <div class="val num"><span id="kGood">–</span><small>%</small></div>
+      <div class="delta"><span class="badge" id="kWater">Вода: –</span></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card chart">
+      <h2>Время ответа по дням</h2>
+      <div class="hint">Секунды на полный ответ</div>
+      <div class="legend">
+        <span><i style="background:var(--c3)"></i>p90</span>
+        <span><i style="background:var(--c1)"></i>Среднее</span>
+        <span><i style="background:var(--c2)"></i>Медиана</span>
+      </div>
+      <div id="lineChart"></div>
+    </div>
+
+    <div class="card">
+      <h2>Качество ответов</h2>
+      <div class="hint" id="qualityHint">Оценка размеченных диалогов</div>
+      <div id="qualityBlock"></div>
+      <div class="hint" style="margin:18px 0 10px;font-weight:600;color:var(--text-strong)">Дефекты ответов, шт</div>
+      <div class="hbars" id="defectBars"></div>
+    </div>
+  </div>
+
+  <div class="grid rev">
+    <div class="card">
+      <h2>Категории вопросов</h2>
+      <div class="hint" id="catHint"></div>
+      <div class="hbars" id="catBars"></div>
+    </div>
+
+    <div class="card">
+      <h2>Топ вопросов</h2>
+      <div class="hint">Самые частые формулировки</div>
+      <div id="topQuestions"></div>
+    </div>
+  </div>
+
+  <div class="foot">Файл: CSV, JSON или XLSX. Колонки (рус/англ алиасы): дата, вопрос, категория, время_ответа (с), оценка (правильный / частично / вода / ошибка), дефект. Обязательны только «вопрос» и «время_ответа»; остальное - опционально, блоки без данных скрываются. Всё считается локально в браузере, файл никуда не отправляется.</div>
+</div>
+
+<script>
+'use strict';
+/* ---------- column aliases ---------- */
+const ALIASES = {
+  date:    ['дата','date','день','timestamp','datetime','created_at','время','ts'],
+  question:['вопрос','question','запрос','query','text','сообщение','message'],
+  category:['категория','category','категория_вопроса','тема','topic','cat'],
+  time:    ['время_ответа','время ответа','response_time','time','latency','сек','seconds','duration','время_ответа_с','response_seconds'],
+  verdict: ['оценка','verdict','качество','quality','вердикт','label','разметка'],
+  defect:  ['дефект','defect','категория_ответа','ошибка_тип','issue','проблема']
+};
+const VERDICT_MAP = [
+  [/прав|correct|верн|good|ок|ok/i, 'Правильный'],
+  [/част|partial/i, 'Частично верный'],
+  [/вода|water|нет прямого|no answer|empty/i, 'Вода, нет ответа'],
+  [/ошиб|error|wrong|невер/i, 'Ошибка']
+];
+const QUALITY_COLORS = {'Правильный':'var(--c1)','Частично верный':'var(--c3)','Вода, нет ответа':'var(--c4)','Ошибка':'var(--neg)'};
+const BAR_COLORS = ['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--gray)'];
+const CAT_EMOJI = [[/910|снр|упрощ/i,'📄','#DDF6E8'],[/ипн|зарплат|налог/i,'💰','#E0F2FF'],[/восмс|опв|соц|со\b/i,'🧾','#EFE4FF'],[/ндс/i,'🧮','#FFF0D9'],[/сотруд|кадр|директор/i,'👥','#FFE4E1']];
+
+/* ---------- demo data (synthetic, deterministic) ---------- */
+function demoData(){
+  const qs = [
+    ['Как заполнить форму 910 за полугодие?','Форма 910 и СНР',.30],
+    ['Сколько налогов платить за сотрудника с зарплатой 300 000 тг?','ИПН и зарплата',.20],
+    ['Как убрать ВОСМС из 910 при найме сотрудника?','Соцплатежи (ОПВ, ВОСМС, СО)',.15],
+    ['Какой лимит дохода на упрощёнке в 2026 году?','Форма 910 и СНР',.12],
+    ['Нужно ли платить СО за директора-учредителя?','Сотрудники и кадры',.10],
+    ['Когда нужно вставать на учёт по НДС?','НДС и пороги',.08],
+    ['Как оплатить налоги через приложение?','Прочее',.05]
+  ];
+  const verdicts = [['Правильный',.78],['Частично верный',.09],['Вода, нет ответа',.09],['Ошибка',.04]];
+  const defects = ['Вода / нет прямого ответа','Ошибка в цифрах','Устаревшая ставка (ИПН)','Пробел в базе знаний','Противоречие в ответе','Вне тематики','Повтор без улучшения'];
+  let seed = 42; const rnd = () => (seed = (seed*1103515245+12345) % 2147483648) / 2147483648;
+  const pick = (arr) => { let r = rnd(), acc = 0; for (const it of arr){ acc += it[it.length-1]; if (r <= acc) return it; } return arr[0]; };
+  const rows = []; const today = new Date(); today.setHours(0,0,0,0);
+  for (let d = 34; d >= 0; d--){
+    const day = new Date(today); day.setDate(day.getDate()-d);
+    const n = 24 + Math.floor(rnd()*22);
+    for (let i = 0; i < n; i++){
+      const q = pick(qs);
+      const base = 3 + rnd()*4, tail = rnd() > .85 ? rnd()*9 : 0;
+      const v = pick(verdicts)[0];
+      rows.push({
+        date: day, question: q[0], category: q[1],
+        time: +(base + tail).toFixed(1),
+        verdict: v,
+        defect: v === 'Правильный' ? '' : defects[Math.floor(rnd()*defects.length)]
+      });
+    }
+  }
+  return rows;
+}
+
+/* ---------- parsing ---------- */
+function normKey(k){ return String(k||'').trim().toLowerCase().replace(/\s+/g,'_'); }
+function mapColumns(headerKeys){
+  const map = {};
+  for (const field in ALIASES){
+    for (const key of headerKeys){
+      if (ALIASES[field].includes(normKey(key).replace(/_/g,' ')) || ALIASES[field].includes(normKey(key))){ map[field] = key; break; }
+    }
+  }
+  return map;
+}
+function parseDate(v){
+  if (v == null || v === '') return null;
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  if (typeof v === 'number'){ // excel serial
+    const d = new Date(Math.round((v - 25569) * 86400 * 1000)); return isNaN(d) ? null : d;
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})/);
+  if (m) return new Date(m[3].length === 2 ? '20'+m[3] : m[3], m[2]-1, m[1]);
+  const d = new Date(s); return isNaN(d) ? null : d;
+}
+function parseNum(v){
+  if (typeof v === 'number') return v;
+  const n = parseFloat(String(v).replace(',','.').replace(/[^\d.\-]/g,''));
+  return isNaN(n) ? null : n;
+}
+function normVerdict(v){
+  if (!v) return '';
+  for (const [re,name] of VERDICT_MAP) if (re.test(String(v))) return name;
+  return String(v).trim();
+}
+function toRecords(objs){
+  if (!objs.length) throw new Error('Файл пуст');
+  const map = mapColumns(Object.keys(objs[0]));
+  if (!map.question || !map.time) throw new Error('Не нашёл обязательные колонки «вопрос» и «время_ответа». Найдено: ' + Object.keys(objs[0]).join(', '));
+  const rows = [];
+  for (const o of objs){
+    const t = parseNum(o[map.time]);
+    const q = String(o[map.question]||'').trim();
+    if (!q || t == null) continue;
+    rows.push({
+      date: map.date ? parseDate(o[map.date]) : null,
+      question: q,
+      category: map.category ? String(o[map.category]||'').trim() : '',
+      time: t,
+      verdict: map.verdict ? normVerdict(o[map.verdict]) : '',
+      defect: map.defect ? String(o[map.defect]||'').trim() : ''
+    });
+  }
+  if (!rows.length) throw new Error('Ни одной валидной строки (вопрос + числовое время ответа)');
+  return rows;
+}
+function parseCSV(text){
+  const firstLine = text.slice(0, text.indexOf('\n') === -1 ? text.length : text.indexOf('\n'));
+  const delim = [';','\t',','].map(d => [d, (firstLine.match(new RegExp(d === '\t' ? '\t' : '\\'+d, 'g'))||[]).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows = []; let row = [], cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if (inQ){ if (ch === '"'){ if (text[i+1] === '"'){ cur += '"'; i++; } else inQ = false; } else cur += ch; }
+    else if (ch === '"') inQ = true;
+    else if (ch === delim){ row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r'){ if (cur !== '' || row.length){ row.push(cur); rows.push(row); row = []; cur = ''; } if (ch === '\r' && text[i+1] === '\n') i++; }
+    else cur += ch;
+  }
+  if (cur !== '' || row.length){ row.push(cur); rows.push(row); }
+  const header = rows.shift();
+  return rows.filter(r => r.some(c => c !== '')).map(r => Object.fromEntries(header.map((h,i) => [h, r[i] ?? ''])));
+}
+async function parseFile(file){
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.json')){
+    const data = JSON.parse(await file.text());
+    return toRecords(Array.isArray(data) ? data : (data.rows || data.data || []));
+  }
+  if (name.endsWith('.xlsx') || name.endsWith('.xls')){
+    if (!window.XLSX){
+      await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; s.onload = res; s.onerror = () => rej(new Error('Не удалось загрузить парсер XLSX (нужен интернет). Сохрани файл как CSV.')); document.head.appendChild(s); });
+    }
+    const wb = XLSX.read(await file.arrayBuffer(), {cellDates:true});
+    const objs = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+    return toRecords(objs);
+  }
+  return toRecords(parseCSV(await file.text()));
+}
+
+/* ---------- stats ---------- */
+const fmt1 = n => n.toFixed(1).replace('.',',');
+const fmtInt = n => n.toLocaleString('ru-RU').replace(/ /g,' ');
+function quantile(sorted, p){
+  if (!sorted.length) return 0;
+  const idx = Math.min(sorted.length-1, Math.max(0, Math.ceil(p*sorted.length)-1));
+  return sorted[idx];
+}
+function stats(times){
+  const s = [...times].sort((a,b)=>a-b);
+  return { avg: s.reduce((a,b)=>a+b,0)/s.length, med: quantile(s,.5), p90: quantile(s,.9) };
+}
+function countBy(rows, key){
+  const m = new Map();
+  for (const r of rows){ const v = r[key]; if (!v) continue; m.set(v, (m.get(v)||0)+1); }
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+}
+
+/* ---------- rendering ---------- */
+const $ = id => document.getElementById(id);
+let ALL = demoData(), PERIOD = 7, SOURCE = 'demo';
+
+function periodLabel(){ return PERIOD===1?'сегодня':PERIOD===7?'за 7 дней':PERIOD===30?'за 30 дней':PERIOD===92?'за квартал':'за всё время'; }
+
+function filtered(){
+  if (!PERIOD) return ALL;
+  const dated = ALL.filter(r => r.date);
+  if (!dated.length) return ALL;
+  const max = new Date(Math.max(...dated.map(r => +r.date)));
+  const from = new Date(max); from.setDate(from.getDate() - (PERIOD-1)); from.setHours(0,0,0,0);
+  return ALL.filter(r => !r.date || r.date >= from);
+}
+
+function hbars(el, entries, colors){
+  if (!entries.length){ el.innerHTML = '<div class="empty">Нет данных в файле</div>'; return; }
+  const max = entries[0][1];
+  el.innerHTML = entries.map(([name,cnt],i) =>
+    `<div class="row"><span class="name" title="${esc(name)}">${esc(name)}</span><span class="track"><span class="fill" style="width:${Math.max(3,cnt/max*100)}%;background:${colors[Math.min(i,colors.length-1)]}"></span></span><span class="cnt num">${fmtInt(cnt)}</span></div>`
+  ).join('');
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+function renderLineChart(rows){
+  const el = $('lineChart');
+  const dated = rows.filter(r => r.date);
+  if (!dated.length){ el.innerHTML = '<div class="empty">В файле нет колонки с датой: тренд по дням недоступен</div>'; return; }
+  const byDay = new Map();
+  for (const r of dated){ const k = r.date.toISOString().slice(0,10); (byDay.get(k) || byDay.set(k,[]).get(k)).push(r.time); }
+  let days = [...byDay.entries()].sort((a,b)=>a[0]<b[0]?-1:1);
+  if (days.length > 31) days = days.slice(-31);
+  const series = days.map(([k,times]) => ({ k, ...stats(times) }));
+  const maxV = Math.max(...series.map(s=>s.p90)) * 1.15 || 1;
+  const W = 660, H = 260, L = 40, R = 620, T = 8, B = 220;
+  const x = i => days.length === 1 ? (L+R)/2 : L + 30 + (R-L-30) * i/(series.length-1);
+  const y = v => B - (v/maxV)*(B-T);
+  const line = key => series.map((s,i)=>`${x(i).toFixed(1)},${y(s[key]).toFixed(1)}`).join(' ');
+  const gl = [0,.25,.5,.75,1].map(f => { const v = maxV*f; return `<line class="gridline" x1="${L}" y1="${y(v)}" x2="${R}" y2="${y(v)}"/><text class="axis-t" x="${L-10}" y="${y(v)+4}" text-anchor="end">${v<10?fmt1(v):Math.round(v)}</text>`; }).join('');
+  const step = Math.ceil(series.length/7);
+  const xt = series.map((s,i) => i % step ? '' : `<text class="axis-t" x="${x(i)}" y="244" text-anchor="middle">${new Date(s.k).toLocaleDateString('ru-RU',{day:'numeric',month:'short'}).replace('.','')}</text>`).join('');
+  const last = series[series.length-1];
+  const dlbl = (v,color) => `<text class="dl" x="${R+6}" y="${y(v)+4}" fill="${color}">${fmt1(v)}</text>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Среднее, медиана и p90 времени ответа по дням">
+    ${gl}${xt}
+    <polyline fill="none" stroke="var(--c3)" stroke-width="2" stroke-linejoin="round" points="${line('p90')}"/>
+    <polyline fill="none" stroke="var(--c1)" stroke-width="2" stroke-linejoin="round" points="${line('avg')}"/>
+    <polyline fill="none" stroke="var(--c2)" stroke-width="2" stroke-linejoin="round" points="${line('med')}"/>
+    ${dlbl(last.p90,'var(--c3)')}${dlbl(last.avg,'var(--c1)')}${dlbl(last.med,'var(--c2)')}
+  </svg>`;
+}
+
+function renderQuality(rows){
+  const labeled = rows.filter(r => r.verdict);
+  const block = $('qualityBlock');
+  if (!labeled.length){
+    $('qualityHint').textContent = 'В файле нет колонки «оценка»: добавь разметку, чтобы видеть качество';
+    block.innerHTML = '<div class="empty">Нет размеченных диалогов</div>';
+    $('kGood').textContent = '–'; $('kWater').textContent = 'Вода: –';
+    return;
+  }
+  $('qualityHint').textContent = `Размечено ${fmtInt(labeled.length)} диалогов ${periodLabel()}`;
+  const order = ['Правильный','Частично верный','Вода, нет ответа','Ошибка'];
+  const counts = countBy(labeled,'verdict');
+  const known = order.map(n => [n, counts.find(c=>c[0]===n)?.[1] || 0]);
+  const other = counts.filter(c => !order.includes(c[0]));
+  const total = labeled.length;
+  const parts = [...known.filter(k=>k[1]>0), ...other];
+  block.innerHTML =
+    `<div class="stack">${parts.map(([n,c]) => `<div style="width:${(c/total*100).toFixed(1)}%;background:${QUALITY_COLORS[n]||'var(--gray)'}" title="${esc(n)}: ${c}"></div>`).join('')}</div>
+     <div class="qlegend">${parts.slice(0,4).map(([n,c]) => `<div class="q"><div class="n num" style="color:${QUALITY_COLORS[n]||'var(--gray)'}">${fmtInt(c)}</div><div class="t"><span class="dot" style="background:${QUALITY_COLORS[n]||'var(--gray)'}"></span>${esc(n)}</div></div>`).join('')}</div>`;
+  const good = known[0][1], water = known[2][1];
+  $('kGood').textContent = Math.round(good/total*100);
+  $('kWater').textContent = 'Вода: ' + Math.round(water/total*100) + '%';
+}
+
+function renderTop(rows){
+  const el = $('topQuestions');
+  const norm = new Map();
+  for (const r of rows){
+    const key = r.question.toLowerCase().replace(/[?!.]+$/,'').trim();
+    const e = norm.get(key) || {q: r.question, cat: r.category, n: 0};
+    e.n++; norm.set(key, e);
+  }
+  const top = [...norm.values()].sort((a,b)=>b.n-a.n).slice(0,6);
+  el.innerHTML = top.map(t => {
+    let emoji = '💬', bg = '#DDF6E8';
+    for (const [re,e,b] of CAT_EMOJI) if (re.test(t.cat + ' ' + t.q)){ emoji = e; bg = b; break; }
+    return `<div class="qrow"><div class="ic" style="background:${bg}">${emoji}</div>
+      <div class="q"><div class="txt">${esc(t.q)}</div><div class="cat">${esc(t.cat || 'Без категории')}</div></div>
+      <div class="n num">${fmtInt(t.n)}</div><div class="share num">${fmt1(t.n/rows.length*100)}%</div></div>`;
+  }).join('') || '<div class="empty">Нет данных</div>';
+}
+
+function render(){
+  const rows = filtered();
+  $('kDialogsLab').textContent = 'Диалогов ' + periodLabel();
+  if (!rows.length){
+    $('kDialogs').textContent = '0';
+    $('errBox').style.display = 'block';
+    $('errBox').textContent = 'За выбранный период нет данных';
+    return;
+  }
+  $('errBox').style.display = 'none';
+  $('kDialogs').textContent = fmtInt(rows.length);
+  $('kDialogsDelta').textContent = SOURCE === 'demo' ? 'демо-данные' : '';
+  const st = stats(rows.map(r=>r.time));
+  $('kAvg').textContent = fmt1(st.avg); $('kMed').textContent = fmt1(st.med); $('kP90').textContent = fmt1(st.p90);
+  renderLineChart(rows);
+  renderQuality(rows);
+  const cats = countBy(rows,'category');
+  $('catHint').textContent = `Все ${fmtInt(rows.length)} диалогов ${periodLabel()}`;
+  hbars($('catBars'), cats.slice(0,6), BAR_COLORS);
+  hbars($('defectBars'), countBy(rows,'defect').slice(0,7), ['var(--c4)','var(--neg)','var(--c3)','var(--c5)','var(--c2)','var(--gray)','var(--gray)']);
+  renderTop(rows);
+}
+
+/* ---------- wiring ---------- */
+async function loadFile(file){
+  try{
+    ALL = await parseFile(file);
+    SOURCE = file.name;
+    const dated = ALL.filter(r=>r.date).length;
+    $('srcInfo').innerHTML = `Файл: <b>${esc(file.name)}</b> · ${fmtInt(ALL.length)} строк${dated ? '' : ' · без дат'}`;
+    $('subline').textContent = 'Налоговый ассистент для МСБ · данные из файла';
+    if (!dated){ PERIOD = 0; syncTabs(); }
+    render();
+  } catch(e){
+    $('errBox').style.display = 'block';
+    $('errBox').textContent = 'Не смог прочитать файл: ' + e.message;
+  }
+}
+function syncTabs(){ document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', +b.dataset.days === PERIOD)); }
+$('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; PERIOD = +b.dataset.days; syncTabs(); render(); });
+$('pickBtn').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ''; };
+$('tplBtn').onclick = () => {
+  const csv = 'дата,вопрос,категория,время_ответа,оценка,дефект\n' +
+    '18.08.2026,Как заполнить форму 910 за полугодие?,Форма 910 и СНР,5.2,правильный,\n' +
+    '18.08.2026,Как убрать ВОСМС из 910 при найме?,Соцплатежи,8.1,вода,Вода / нет прямого ответа\n' +
+    '19.08.2026,Какой порог прогрессии ИПН?,ИПН и зарплата,6.4,ошибка,Ошибка в цифрах\n';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'}));
+  a.download = 'ai-quality-template.csv'; a.click(); URL.revokeObjectURL(a.href);
+};
+let dragDepth = 0;
+document.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('drag'); });
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('dragleave', () => { if (--dragDepth <= 0){ dragDepth = 0; document.body.classList.remove('drag'); } });
+document.addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; document.body.classList.remove('drag'); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+
+render();
+</script>
+</body>
+</html>
